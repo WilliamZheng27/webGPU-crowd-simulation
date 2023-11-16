@@ -29,3 +29,8 @@ from scratch for this project.
 Parallelizing the algorithm is also non-trivial. The constraint groups can be solved in parallel using
 techniques like a Jacobi solver. The neighbor-finding process, similar to what we have encountered in
 the n-body simulation problem, can also be accelerated by techniques like hash grids.
+
+## Resources
+The algorithm we plan to implement is based on the paper: [Position-Based Real-Time Simulation of Large Crowds](https://tomerwei.github.io/pdfs/mig2017.pdf).
+Our implementation will start from scratch but will use the CUDA implementation that comes with the
+paper as a reference. Since WebGPU runs on Google Chrome, we will develop and test our implementation on our own computers.
