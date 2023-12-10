@@ -14,16 +14,16 @@ We were able to finish the first two milestones on time (proposal & webGPU Demo)
 
 ## Poster Session Plan
 
-We plan to come up with following result:
+We plan to come up with the following result:
 
 - A running WebGPU implementation of the crowd-simulation algorithm described in the paper
-  - With/without long range collision
+  - With/without long-range collision
   - With/without collision avoidance
   - With/without obstacles
   - Different number of agents
   - Different sizes of agents
-- Benchmark
-  - Naive JavaScript Implementation
+- Benchmark (render time for each frame)
+  - Naive JavaScript Implementation without using compute shader
   - CUDA (Provided by the paper)
   - WebGPU on CUDA
   - WebGPU on Metal
