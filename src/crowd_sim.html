@@ -23,8 +23,10 @@
       if (!adapter) {
         throw new Error("No appropriate GPUAdapter found.");
       }
-
-      const device = await adapter.requestDevice();
+      const hasTimestampQuery = adapter.features.has('timestamp-query');
+      const device = await adapter.requestDevice({
+        requiredFeatures: hasTimestampQuery ? ['timestamp-query'] : [],
+      });
 
       // Canvas configuration
       const context = canvas.getContext("webgpu");
@@ -260,6 +262,19 @@
         size: simParamBufferSize,
         usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
       });
+      device.queue.writeBuffer(
+        simParamBuffer,
+        0,
+        new Float32Array([
+          simParams.deltaT,
+          simParams.rule1Distance,
+          simParams.rule2Distance,
+          simParams.rule3Distance,
+          simParams.rule1Scale,
+          simParams.rule2Scale,
+          simParams.rule3Scale,
+        ])
+      );
 
       // can be updated with GUI, not implemented here (https://webgpu.github.io/webgpu-samples/samples/computeBoids#main.ts)
 
@@ -319,7 +334,7 @@
       let t = 0;
       function frame() {
         // Sample is no longer the active page.
-        if (!pageState.active) return;
+        // if (!pageState.active) return;
 
         renderPassDescriptor.colorAttachments[0].view = context
           .getCurrentTexture()
@@ -365,6 +380,7 @@
         device.queue.submit([commandEncoder.finish()]);
 
         ++t;
+        // console.log(t);
         requestAnimationFrame(frame);
       }
 
