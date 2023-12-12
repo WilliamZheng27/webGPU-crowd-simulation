@@ -26,3 +26,5 @@ const agentRadius : f32 = 1.0 // agent size (TODO: find the right size)
 const blendFactor : f32 = 0.0385;
 const k_shortrange : f32 = 1.0;
 const avgCoeff : f32 = 1.2;
+const eps : f32 = 0.0001;
+const t0 : f32 = 20.0;
