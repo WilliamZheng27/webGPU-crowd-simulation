@@ -20,6 +20,9 @@ struct Agents {
 }
 
 // constants copied from the paper
-const nearRadius : f32 = 2.0;
-const farRadius : f32 = 5.0;
+const nearRadius : f32 = 2.0; // threshold for SR collision
+const farRadius : f32 = 5.0;  // threshold for LR collision
+const agentRadius : f32 = 1.0 // agent size (TODO: find the right size)
 const blendFactor : f32 = 0.0385;
+const k_shortrange : f32 = 1.0;
+const avgCoeff : f32 = 1.2;
