@@ -12,8 +12,7 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID : vec3<u32>) {
 
   // 4.1 velocity blending 
   // (https://github.com/wayne-wu/webgpu-crowd-simulation/blob/main/src/shaders/explicitIntegration.compute.wgsl)
-  var speed = 1.0; // TODO: find the right value
-  var vp = normalize(goal - agent.pos) * speed;
+  var vp = normalize(goal - agent.pos) * agentSpeed;
   agent.vel = (1.0 - blendFactor) * agent.vel + blendFactor * vp;
   agent.ppos = agent.pos + params.deltaT * agent.vel;
 
