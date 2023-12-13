@@ -19,6 +19,7 @@ const cohesionRadius : f32 = 5.0;  // threshold for cohesion
 const agentRadius : f32 = 0.03;    // agent size
 const blendFactor : f32 = 0.0385;
 const k_shortrange : f32 = 1.0;
+const k_longrange : f32 = 0.15;
 const avgCoeff : f32 = 1.2;
 const eps : f32 = 0.0001;
 const t0 : f32 = 20.0;

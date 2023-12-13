@@ -7,10 +7,10 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID : vec3<u32>) {
   var index = GlobalInvocationID.x;
   var agent = agents_r.agents[index];
 
-  var totalDx = vec3<f32>(0.0, 0.0, 0.0);
+  var totalDx = vec2<f32>(0.0);
   var neighborCount = 0;
   for (var j = 0u; j < arrayLength(&agents_r.agents); j++) {
-    if (idx == j) {
+    if (index == j) {
       continue;
     }
 

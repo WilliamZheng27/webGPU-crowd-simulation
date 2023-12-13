@@ -8,15 +8,15 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID : vec3<u32>) {
   var index = GlobalInvocationID.x;
   var agent = agents_r.agents[index];
 
-  var totalDx = vec3<f32>(0.0, 0.0, 0.0);
+  var totalDx = vec2<f32>(0.0);
   var neighborCount = 0;
   for (var j = 0u; j < arrayLength(&agents_r.agents); j++) {
-    if (idx == j) {
+    if (index == j) {
       continue;
     }
 
     var agent_j = agents_r.agents[j];
-    var d = length(agent.pos, agent_j.pos);
+    var d = distance(agent.pos, agent_j.pos);
     if (d > farRadius) {
       continue;
     }
@@ -34,7 +34,7 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID : vec3<u32>) {
       }
 
       var x_ij = agent.pos - agent_j.pos; // relative displacement
-      var v_ij = (1.0/dt) * (agent.xp - agent.x - agent_j.xp + agent_j.x); // relative velocity
+      var v_ij = (1.0/dt) * (agent.ppos - agent.pos - agent_j.ppos + agent_j.pos); // relative velocity
 
       var a = dot(v_ij, v_ij);
       var b = -dot(x_ij, v_ij);
@@ -55,10 +55,10 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID : vec3<u32>) {
       var t_collision = dt + t_nocollision;
 
       // Get collision and collision-free positions
-      var xi_nocollision = agent.x + t_nocollision * agent.v;
-      var xi_collision   = agent.x + t_collision * agent.v;
-      var xj_nocollision = agent_j.x + t_nocollision * agent_j.v;
-      var xj_collision   = agent_j.x + t_collision * agent_j.v;
+      var xi_nocollision = agent.pos + t_nocollision * agent.vel;
+      var xi_collision   = agent.pos + t_collision * agent.vel;
+      var xj_nocollision = agent_j.pos + t_nocollision * agent_j.vel;
+      var xj_collision   = agent_j.pos + t_collision * agent_j.vel;
 
       // Enforce collision free for x_collision using distance constraint
       var n = xi_collision - xj_collision;

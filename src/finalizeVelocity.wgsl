@@ -24,24 +24,25 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID : vec3<u32>) {
   var avgVel = vec2<f32>(0.0);
 
   for (var j = 0u; j < arrayLength(&agents_r.agents); j++) {
-    if (idx == j) {
+    if (index == j) {
       continue;
     }
 
     var agent_j = agents_r.agents[j];
-    if (agent_j.goal != agent.goal) {
+    var equality = (agent_j.goal == agent.goal);
+    if (!equality.x || !equality.y) {
       continue;  
     }
 
-    var d = distance(agent.ppos, neighbor.ppos);
+    var d = distance(agent.ppos, agent_j.ppos);
     if (d > cohesionRadius){
       continue;
     }
     var w = poly6Kernel(d*d);
-    velAvg = velAvg + (agent.vel - agent_j.vel) * w;
+    avgVel = avgVel + (agent.vel - agent_j.vel) * w;
   }
   var xsph_h = 7.0;
-  agent.vel = agent.vel + xsph_h * velAvg;
+  agent.vel = agent.vel + xsph_h * avgVel;
 
   // 4.6 Maximum Speed and Acceleration Limiting
   var dir = normalize(agent.vel);
@@ -51,7 +52,7 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID : vec3<u32>) {
   }
 
   // finally, update position
-  agent.pos = agent.pos + agent.vel * sim_params.deltaTime;
+  agent.pos = agent.pos + agent.vel * params.deltaT;
 
   // agent.dir = dir_blending * normalize(agent.dir) + (1.0 - dir_blending) * v_dir;
 

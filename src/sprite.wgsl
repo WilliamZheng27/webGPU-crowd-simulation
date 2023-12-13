@@ -18,7 +18,7 @@ fn vert_main(
   
   var output : VertexOutput;
   output.position = vec4(pos + a_particlePos, 0.0, 1.0);
-  output.color = vec4(a_goal, 0.5, 1.0); // some arbitrary color based on goal
+  output.color = vec4(a_goal, 1.0, 1.0); // some arbitrary color based on goal
   return output;
 }
 
