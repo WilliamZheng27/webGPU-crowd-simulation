@@ -6,7 +6,7 @@
 fn main(@builtin(global_invocation_id) GlobalInvocationID : vec3<u32>) {
   var index = GlobalInvocationID.x;
   var agent = agents_r.agents[index];
-  var goal = goal1; // TODO: only one goal for now
+  var goal = agent.goal;
 
   // TODO: consider ignoring the particle when it's close enough to the goal
 

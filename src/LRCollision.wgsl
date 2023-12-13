@@ -1,3 +1,4 @@
+@id(1000) override itr : u32;
 @binding(0) @group(0) var<uniform> params : SimParams;
 @binding(1) @group(0) var<storage, read> agents_r : Agents;
 @binding(2) @group(0) var<storage, read_write> agents_w : Agents;
@@ -68,7 +69,7 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID : vec3<u32>) {
         n = normalize(n);
         
         var k = k_longrange * exp(-t_nocollision*t_nocollision/t0);
-        k = 1.0 - pow(1.0 - k, 1.0/(f32(itr + 1))); // TODO: itr not defined yet
+        k = 1.0 - pow(1.0 - k, 1.0/(f32(itr + 1)));
         var w = 0.5;
         var dx = -w * f * n;
 

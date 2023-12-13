@@ -29,7 +29,9 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID : vec3<u32>) {
     }
 
     var agent_j = agents_r.agents[j];
-    // TODO: ensure agents are from the same group
+    if (agent_j.goal != agent.goal) {
+      continue;  
+    }
 
     var d = distance(agent.ppos, neighbor.ppos);
     if (d > cohesionRadius){
