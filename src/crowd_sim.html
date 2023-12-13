@@ -37,10 +37,7 @@
       if (!adapter) {
         throw new Error("No appropriate GPUAdapter found.");
       }
-      const hasTimestampQuery = adapter.features.has('timestamp-query');
-      const device = await adapter.requestDevice({
-        requiredFeatures: hasTimestampQuery ? ['timestamp-query'] : [],
-      });
+      const device = await adapter.requestDevice({});
 
       // Canvas configuration
       const context = canvas.getContext("webgpu");
@@ -140,7 +137,7 @@
         1,
       ];
 
-      var computeBindGroupLayout = device.createBindGroupLayout({
+      const computeBindGroupLayout = device.createBindGroupLayout({
         entries: [
           {
             binding: 0, // params
