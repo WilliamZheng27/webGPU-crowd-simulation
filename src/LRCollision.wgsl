@@ -17,14 +17,14 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID : vec3<u32>) {
 
     var agent_j = agents_r.agents[j];
     var d = distance(agent.pos, agent_j.pos);
-    if (d > farRadius) {
+    if (d > farRadius * params.agentScale) {
       continue;
     }
 
-    var f = d - (2.0 * agentRadius); // assume all agents have same size
+    var f = d - (2.0 * agentRadius * params.agentScale); // assume all agents have same size
     if (f < 0.0) {
       // 4.4 Long Range Collision
-      var r = 2.0 * agentRadius;
+      var r = 2.0 * agentRadius * params.agentScale;
       var r2 = r * r;
       var dt = params.deltaT;
 

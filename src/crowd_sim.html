@@ -51,10 +51,12 @@
           alphaMode: 'premultiplied',
       });
 
+      const numAgents = 8192; // MUST be power of 2
       const simParams = {
-        deltaT: 0.01,
+        deltaT: 0.02,
         stabilityIterations: 1,
         constraintIterations: 6,
+        agentScale: 0.5 ** Math.max(0.0, Math.floor(Math.log(numAgents/512) / Math.log(4))),
       };
 
       // shaders
@@ -219,6 +221,9 @@
         -0.01, -0.02, 0.01,
         -0.02, 0.0, 0.02,
       ]);
+      for (let i = 0; i < vertexBufferData.length; i++) {
+        vertexBufferData[i] *= simParams.agentScale;
+      }
 
       const spriteVertexBuffer = device.createBuffer({
         size: vertexBufferData.byteLength,
@@ -229,7 +234,7 @@
       spriteVertexBuffer.unmap();
 
       // pass parameters to the shaders (some params are omitted if not needed)
-      const simParamBufferSize = 1 * Float32Array.BYTES_PER_ELEMENT;
+      const simParamBufferSize = 2 * Float32Array.BYTES_PER_ELEMENT;
       const simParamBuffer = device.createBuffer({
         size: simParamBufferSize,
         usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
@@ -239,29 +244,70 @@
         0,
         new Float32Array([
           simParams.deltaT,
+          simParams.agentScale,
         ])
       );
 
       // can be updated with GUI, not implemented here (https://webgpu.github.io/webgpu-samples/samples/computeBoids#main.ts)
+      const scene = {
+        RANDOM: 0,
+        SQUARE: 1,
+        CIRCLE: 2,
+      };
+      const selectedScene = scene.SQUARE;
 
-      const numAgents = 1500;
       const initialAgentData = new Float32Array(numAgents * 8);
-      const goals = [
-        [1.0, 1.0], [-1.0, -1.0]
-      ];
       for (let i = 0; i < numAgents; ++i) {
-        // position
-        initialAgentData[8 * i + 0] = 2 * (Math.random() - 0.5);
-        initialAgentData[8 * i + 1] = 2 * (Math.random() - 0.5);
-        // velocity
-        initialAgentData[8 * i + 2] = 2 * (Math.random() - 0.5) * 0.1;
-        initialAgentData[8 * i + 3] = 2 * (Math.random() - 0.5) * 0.1;
-        // planed / predicted position (initial value doesn't matter)
-        initialAgentData[8 * i + 4] = initialAgentData[8 * i + 0]
-        initialAgentData[8 * i + 5] = initialAgentData[8 * i + 1]
-        // goal
-        initialAgentData[8 * i + 6] = i % 2 == 0? goals[0][0] : goals[1][0];
-        initialAgentData[8 * i + 7] = i % 2 == 0? goals[0][1] : goals[1][1];
+        if (selectedScene == scene.RANDOM) {
+          const goals = [
+            [1.0, 1.0], [-1.0, -1.0]
+          ];
+          // position
+          initialAgentData[8 * i + 0] = 2 * (Math.random() - 0.5);
+          initialAgentData[8 * i + 1] = 2 * (Math.random() - 0.5);
+          // velocity
+          initialAgentData[8 * i + 2] = 2 * (Math.random() - 0.5) * 0.1;
+          initialAgentData[8 * i + 3] = 2 * (Math.random() - 0.5) * 0.1;
+          // planed / predicted position (initial value doesn't matter)
+          initialAgentData[8 * i + 4] = initialAgentData[8 * i + 0]
+          initialAgentData[8 * i + 5] = initialAgentData[8 * i + 1]
+          // goal
+          initialAgentData[8 * i + 6] = i % 2 == 0? goals[0][0] : goals[1][0];
+          initialAgentData[8 * i + 7] = i % 2 == 0? goals[0][1] : goals[1][1];
+
+        } else if (selectedScene == scene.SQUARE) {
+          const y_margin = 0.2;
+          const x_margin = 0.2;
+          // boundary is a bounding box represented by [xMin, yMin], [xMax, yMax]
+          const topBoundary = [[x_margin-1.0, y_margin], [1.0-x_margin, 1.0-y_margin]];
+          const botBoundary = [[x_margin-1.0, y_margin-1.0], [1.0-x_margin, -y_margin]];
+          const boundary = i % 2 == 0? topBoundary : botBoundary;
+          const velocity = i % 2 == 0? [0, -0.1] : [0, 0.1];
+          const goal = i % 2 == 0? [0, -1.0] : [0, 1.0];
+          const Idx = Math.floor(i / 2);
+          const power = Math.log2(numAgents);
+          const x_count = 2 ** Math.ceil(power / 2);
+          const y_count = 2 ** Math.floor(power / 2);
+          const x_offset = (boundary[1][0] - boundary[0][0]) / x_count;
+          const y_offset = (boundary[1][1] - boundary[0][1]) / y_count;
+          const x_idx = Idx % x_count;
+          const y_idx = Math.floor(Idx / x_count);
+
+          // position
+          const randomVal = 2 * (Math.random() - 0.5);
+          const perturbation = [x_offset * randomVal / 5.0, y_offset * randomVal / 5.0];
+          initialAgentData[8 * i + 0] = boundary[0][0] + (x_idx * x_offset) + perturbation[0];
+          initialAgentData[8 * i + 1] = boundary[0][1] + (y_idx * y_offset) + perturbation[1];
+          // velocity
+          initialAgentData[8 * i + 2] = velocity[0] * simParams.agentScale;
+          initialAgentData[8 * i + 3] = velocity[1] * simParams.agentScale;
+          // planed / predicted position (initial value doesn't matter)
+          initialAgentData[8 * i + 4] = initialAgentData[8 * i + 0]
+          initialAgentData[8 * i + 5] = initialAgentData[8 * i + 1]
+          // goal
+          initialAgentData[8 * i + 6] = goal[0];
+          initialAgentData[8 * i + 7] = goal[1];
+        }     
       }
 
       const agentBuffers = new Array(2);
