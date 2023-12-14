@@ -40,7 +40,7 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID : vec3<u32>) {
       var b = -dot(x_ij, v_ij);
       var c = dot(x_ij, x_ij) - r2;
       var discr = b*b - a*c;
-      if (discr < 0.0 || abs(a) < eps) { return; }
+      if (discr < 0.0 || abs(a) < eps) { continue; }
 
       discr = sqrt(discr);
 
@@ -48,7 +48,7 @@ fn main(@builtin(global_invocation_id) GlobalInvocationID : vec3<u32>) {
       var t = (b - discr)/a;
 
       // Prune out invalid case
-      if (t < eps || t > t0) { return; }
+      if (t < eps || t > t0) { continue; }
 
       // Get time before and after collision
       var t_nocollision = dt * floor(t/dt);
