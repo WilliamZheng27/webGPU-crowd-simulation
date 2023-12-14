@@ -6,6 +6,7 @@
     <title>Crowd Simulation (WebGPU)</title>
   </head>
   <body>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gl-matrix/2.4.0/gl-matrix.js"></script>
     <canvas width="512" height="512"></canvas>
     <script type="module">
       // reference:
@@ -16,7 +17,8 @@
       const spriteRAW = await fetch("./sprite.wgsl");
       const spriteWGSL = await spriteRAW.text();
 
-      const glm = require('gl-matrix');
+      // const glm = require('gl-matrix');
+      const glm = glMatrix;
 
       const canvas = document.querySelector("canvas");
 
@@ -143,7 +145,7 @@
       spriteVertexBuffer.unmap();
 
       const numAgents = 1500;
-      const initialAgentData = new Float32Array(numAgents * 8);
+      var initialAgentData = new Float32Array(numAgents * 8);
       const goals = [
         [1.0, 1.0], [-1.0, -1.0]
       ];
@@ -166,10 +168,10 @@
         const objArray = []
         for (let i = 0; i < numAgents; ++i) {
           const agent = {
-            pos: glm.vec2.fromValues(initialAgentData[8 * i + 0], initialAgentData[8 * i + 1]),
-            vel: glm.vec2.fromValues(initialAgentData[8 * i + 2], initialAgentData[8 * i + 3]),
-            ppos: glm.vec2.fromValues(initialAgentData[8 * i + 4], initialAgentData[8 * i + 5]),
-            goal: glm.vec2.fromValues(initialAgentData[8 * i + 6], initialAgentData[8 * i + 7]),
+            pos: vec2.fromValues(buffer[8 * i + 0], buffer[8 * i + 1]),
+            vel: vec2.fromValues(buffer[8 * i + 2], buffer[8 * i + 3]),
+            ppos: vec2.fromValues(buffer[8 * i + 4], buffer[8 * i + 5]),
+            goal: vec2.fromValues(buffer[8 * i + 6], buffer[8 * i + 7]),
           };
           objArray.push(agent);
         }
@@ -180,24 +182,24 @@
         const agentBuffer = new Float32Array(numAgents * 8);
         for (let i = 0; i < numAgents; ++i) {
           // position
-          initialAgentData[8 * i + 0] = objArray[i].pos[0];
-          initialAgentData[8 * i + 1] = objArray[i].pos[1];
+          agentBuffer[8 * i + 0] = objArray[i].pos[0];
+          agentBuffer[8 * i + 1] = objArray[i].pos[1];
           // velocity
-          initialAgentData[8 * i + 2] = objArray[i].vel[0];
-          initialAgentData[8 * i + 3] = objArray[i].vel[1];
+          agentBuffer[8 * i + 2] = objArray[i].vel[0];
+          agentBuffer[8 * i + 3] = objArray[i].vel[1];
           // planed / predicted position
-          initialAgentData[8 * i + 4] = objArray[i].ppos[0];
-          initialAgentData[8 * i + 5] = objArray[i].ppos[1];
+          agentBuffer[8 * i + 4] = objArray[i].ppos[0];
+          agentBuffer[8 * i + 5] = objArray[i].ppos[1];
           // goal
-          initialAgentData[8 * i + 6] = objArray[i].goal[0];
-          initialAgentData[8 * i + 7] = objArray[i].goal[1];
+          agentBuffer[8 * i + 6] = objArray[i].goal[0];
+          agentBuffer[8 * i + 7] = objArray[i].goal[1];
         }
         return agentBuffer;
       }
 
-      agentBuffer = device.createBuffer({
+      const agentBuffer = device.createBuffer({
         size: initialAgentData.byteLength,
-        usage: GPUBufferUsage.VERTEX | GPUBufferUsage.STORAGE,
+        usage: GPUBufferUsage.VERTEX | GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
         mappedAtCreation: true,
       });
       new Float32Array(agentBuffer.getMappedRange()).set(
@@ -218,15 +220,15 @@
         const eps = 0.0001;
         const t0 = 20.0;
 
-        agents_r = agents_a;
-        agents_w = agents_b;
+        let agents_r = agents_a;
+        let agents_w = agents_b;
         function swap() {
           [agents_r, agents_w] = [agents_w, agents_r];
         }
 
         // stage1. blendVelocity
         for (let i = 0; i < numAgents; ++i) {
-          var agent = {...agents_r[i]};
+          let agent = {...agents_r[i]};
 
           const directionToGoal = vec2.create();
           vec2.subtract(directionToGoal, agent.goal, agent.pos);
@@ -258,148 +260,159 @@
         swap();
 
         // stage2. SR Collision
-        for (let i = 0; i < numAgents; ++i) {
-          var agent = {...agents_r[i]};
+        for (let itr = 0; itr < simParams.stabilityIterations; itr++) {
+          for (let i = 0; i < numAgents; ++i) {
+            let agent = {...agents_r[i]};
 
-          const totalDx = vec2.create();
-          let neighborCount = 0;
+            let totalDx = vec2.create();
+            let neighborCount = 0;
 
-          for (let j = 0; j < numAgents; j++) {
-            if (i === j) {
-              continue;
-            }
-
-            const agent_j = agents_r[j];
-            const n = vec2.create();
-            vec2.subtract(n, agent.ppos, agent_j.ppos);
-            const d = vec2.length(n);
-
-            if (d > nearRadius) {
-              continue;
-            }
-
-            const f = d - 2.0 * agentRadius; // assume all agents have the same size
-
-            if (f < 0.0) {
-              // 4.2 Short Range Collision
-              vec2.normalize(n, n);
-              const w = 0.5; // assume all agents have the same weight
-              const dx = vec2.create();
-              vec2.scale(dx, n, -w * k_shortrange * f);
-
-              // 4.2 Friction (not implemented yet)
-
-              vec2.add(totalDx, totalDx, dx);
-              neighborCount++;
-            }
-          }
-
-          if (neighborCount > 0) {
-            vec2.scale(totalDx, totalDx, avgCoeff / neighborCount);
-
-            vec2.add(agent.pos, agent.pos, totalDx);
-            vec2.add(agent.ppos, agent.ppos, totalDx);
-          }
-          agents_w[i] = agent;
-        }
-        swap();
-
-        // stage3. LR Collision (TODO: iterations!)
-        for (let i = 0; i < numAgents; ++i) {
-          var agent = {...agents_r[i]};
-
-          let totalDx = vec2.create();
-          let neighborCount = 0;
-
-          for (let j = 0; j < numAgents; j++) {
-            if (i == j) {
-              continue;
-            }
-
-            const agent_j = agents_r[j];
-            const d = vec2.distance(agent.pos, agent_j.pos);
-            if (d > farRadius) {
-              continue;
-            }
-
-            const f = d - 2.0 * agentRadius; // assume all agents have the same size
-            if (f < 0.0) {
-              // 4.4 Long Range Collision
-              const r = 2.0 * agentRadius;
-              let r2 = r * r;
-              const dt = simParams.deltaT;
-
-              const dist = vec2.distance(agent.pos, agent_j.pos);
-              if (dist < r) {
-                r2 = (r - dist) * (r - dist);
+            for (let j = 0; j < numAgents; j++) {
+              if (i == j) {
+                continue;
               }
 
-              const x_ij = vec2.subtract(vec2.create(), agent.pos, agent_j.pos); // relative displacement
-              const v_ij = vec2.scale( // relative velocity
-                vec2.create(),
-                vec2.subtract(
-                  vec2.create(),
-                  vec2.subtract(vec2.create(), agent.ppos, agent.pos),
-                  vec2.subtract(vec2.create(), agent_j.ppos, agent_j.pos)),
-                1.0 / dt);
+              const agent_j = agents_r[j];
+              const n = vec2.create();
+              vec2.subtract(n, agent.ppos, agent_j.ppos);
+              const d = vec2.length(n);
 
-              const a = vec2.dot(v_ij, v_ij);
-              const b = -vec2.dot(x_ij, v_ij);
-              const c = vec2.dot(x_ij, x_ij) - r2;
-              const discr = b * b - a * c;
-              if (discr < 0.0 || Math.abs(a) < eps) { continue; }
+              if (d > nearRadius) {
+                continue;
+              }
 
-              const sqrtDiscr = Math.sqrt(discr);
+              const f = d - 2.0 * agentRadius; // assume all agents have the same size
 
-              // Compute exact time to collision
-              const t = (b - sqrtDiscr) / a;
-
-              // Prune out invalid case
-              if (t < eps || t > t0) { continue; }
-
-              // Get time before and after collision
-              const t_nocollision = dt * Math.floor(t / dt);
-              const t_collision = dt + t_nocollision;
-
-              // Get collision and collision-free positions
-              const xi_nocollision = vec2.add(vec2.create(), agent.pos, vec2.scale(vec2.create(), agent.vel, t_nocollision));
-              const xi_collision = vec2.add(vec2.create(), agent.pos, vec2.scale(vec2.create(), agent.vel, t_collision));
-              const xj_nocollision = vec2.add(vec2.create(), agent_j.pos, vec2.scale(vec2.create(), agent_j.vel, t_nocollision));
-              const xj_collision = vec2.add(vec2.create(), agent_j.pos, vec2.scale(vec2.create(), agent_j.vel, t_collision));
-
-              // Enforce collision-free for x_collision using distance constraint
-              const n = vec2.subtract(vec2.create(), xi_collision, xj_collision);
-              const dCollision = vec2.length(n);
-
-              const fCollision = dCollision - r;
-              if (fCollision < 0.0) {
+              if (f < 0.0) {
+                // 4.2 Short Range Collision
                 vec2.normalize(n, n);
+                const w = 0.5; // assume all agents have the same weight
+                const dx = vec2.create();
+                vec2.scale(dx, n, -w * k_shortrange * f);
 
-                const k = k_longrange * Math.exp(-t_nocollision * t_nocollision / t0);
-                const kAdjusted = 1.0 - Math.pow(1.0 - k, 1.0 / (itr + 1));
-                const w = 0.5;
-                const dx = vec2.scale(vec2.create(), n, -w * fCollision);
+                // 4.2 Friction (not implemented yet)
 
-                // 4.5 Avoidance Model (not implemented)
-
-                vec2.scaleAndAdd(totalDx, totalDx, dx, kAdjusted);
+                vec2.add(totalDx, totalDx, dx);
                 neighborCount++;
               }
             }
-          }
 
-          if (neighborCount > 0) {
-            vec2.scale(totalDx, totalDx, simParams.avgCoeff / neighborCount);
-            vec2.add(agent.ppos, agent.ppos, totalDx);
-          }
+            if (neighborCount > 0) {
+              vec2.scale(totalDx, totalDx, avgCoeff / neighborCount);
 
-          agents_w[i] = agent;
+              vec2.add(agent.pos, agent.pos, totalDx);
+              vec2.add(agent.ppos, agent.ppos, totalDx);
+            }
+            agents_w[i] = agent;
+          }
+          swap();
         }
-        swap();
+
+        // stage3. LR Collision
+        for (let itr = 0; itr < simParams.constraintIterations; itr++) {
+          for (let i = 0; i < numAgents; ++i) {
+            let agent = {...agents_r[i]};
+
+            let totalDx = vec2.create();
+            let neighborCount = 0;
+
+            for (let j = 0; j < numAgents; j++) {
+              if (i == j) {
+                continue;
+              }
+
+              const agent_j = agents_r[j];
+              const d = vec2.distance(agent.pos, agent_j.pos);
+              if (d > farRadius) {
+                continue;
+              }
+
+              const f = d - 2.0 * agentRadius; // assume all agents have the same size
+              if (f < 0.0) {
+                // 4.4 Long Range Collision
+                const r = 2.0 * agentRadius;
+                let r2 = r * r;
+                const dt = simParams.deltaT;
+
+                const dist = vec2.distance(agent.pos, agent_j.pos);
+                if (dist < r) {
+                  r2 = (r - dist) * (r - dist);
+                }
+
+                const x_ij = vec2.subtract(vec2.create(), agent.pos, agent_j.pos); // relative displacement
+                const v_ij = vec2.scale( // relative velocity
+                  vec2.create(),
+                  vec2.subtract(
+                    vec2.create(),
+                    vec2.subtract(vec2.create(), agent.ppos, agent.pos),
+                    vec2.subtract(vec2.create(), agent_j.ppos, agent_j.pos)),
+                  1.0 / dt);
+
+                const a = vec2.dot(v_ij, v_ij);
+                const b = -vec2.dot(x_ij, v_ij);
+                const c = vec2.dot(x_ij, x_ij) - r2;
+                const discr = b * b - a * c;
+                if (discr < 0.0 || Math.abs(a) < eps) { continue; }
+
+                const sqrtDiscr = Math.sqrt(discr);
+
+                // Compute exact time to collision
+                const t = (b - sqrtDiscr) / a;
+
+                // Prune out invalid case
+                if (t < eps || t > t0) { continue; }
+
+                // Get time before and after collision
+                const t_nocollision = dt * Math.floor(t / dt);
+                const t_collision = dt + t_nocollision;
+
+                // Get collision and collision-free positions
+                const xi_nocollision = vec2.add(vec2.create(), agent.pos, vec2.scale(vec2.create(), agent.vel, t_nocollision));
+                const xi_collision = vec2.add(vec2.create(), agent.pos, vec2.scale(vec2.create(), agent.vel, t_collision));
+                const xj_nocollision = vec2.add(vec2.create(), agent_j.pos, vec2.scale(vec2.create(), agent_j.vel, t_nocollision));
+                const xj_collision = vec2.add(vec2.create(), agent_j.pos, vec2.scale(vec2.create(), agent_j.vel, t_collision));
+
+                // Enforce collision-free for x_collision using distance constraint
+                const n = vec2.subtract(vec2.create(), xi_collision, xj_collision);
+                const dCollision = vec2.length(n);
+
+                const fCollision = dCollision - r;
+                if (fCollision < 0.0) {
+                  vec2.normalize(n, n);
+
+                  const k = k_longrange * Math.exp(-t_nocollision * t_nocollision / t0);
+                  const kAdjusted = 1.0 - Math.pow(1.0 - k, 1.0 / (itr + 1));
+                  const w = 0.5;
+                  const dx = vec2.scale(vec2.create(), n, -w * fCollision);
+
+                  // 4.5 Avoidance Model (not implemented)
+
+                  vec2.scaleAndAdd(totalDx, totalDx, dx, kAdjusted);
+                  neighborCount++;
+                }
+              }
+            }
+
+            if (neighborCount > 0) {
+              vec2.add(
+                agent.ppos,
+                agent.ppos,
+                vec2.scale(
+                  vec2.create(),
+                  totalDx,
+                  avgCoeff / neighborCount
+                )
+              );
+            }
+
+            agents_w[i] = agent;
+          }
+          swap();
+        }
 
         // stage4. Finalize Velocity and Cohesion
         for (let i = 0; i < numAgents; ++i) {
-          var agent = {...agents_r[i]};
+          let agent = {...agents_r[i]};
 
           function poly6Kernel(r) {
             let w = 0.0;
@@ -414,7 +427,7 @@
 
           vec2.scale(agent.vel,
             vec2.subtract(vec2.create(), agent.ppos, agent.pos),
-            1.0 / params.deltaT
+            1.0 / simParams.deltaT
           );
 
           // 4.3 Cohesion (adding XSPH viscosity)
@@ -425,7 +438,7 @@
               continue;
             }
 
-            const agent_j = agents_r.agents[j];
+            const agent_j = agents_r[j];
             const equality = vec2.exactEquals(agent_j.goal, agent.goal);
             if (!equality[0] || !equality[1]) {
               continue;  
@@ -451,7 +464,7 @@
           }
 
           // Finally, update position
-          vec2.scaleAndAdd(agent.pos, agent.pos, agent.vel, params.deltaT);
+          vec2.scaleAndAdd(agent.pos, agent.pos, agent.vel, simParams.deltaT);
 
           agents_w[i] = agent;
         }
@@ -461,7 +474,6 @@
 
       let t = 0;
       function frame() {
-
         renderPassDescriptor.colorAttachments[0].view = context
           .getCurrentTexture()
           .createView();
@@ -472,13 +484,10 @@
           let agents_r = buffer2ObjArray(initialAgentData);
           let agents_w = buffer2ObjArray(initialAgentData);
           let updated_agents = updateAgents(agents_r, agents_w);
-          let initialAgentData = objArray2Buffer(update_agents);
+          initialAgentData = objArray2Buffer(updated_agents);
 
           // write the updated CPU agent buffer to the GPU
-          new Float32Array(agentBuffer.getMappedRange()).set(
-            initialAgentData
-          );
-          agentBuffer.unmap();
+          device.queue.writeBuffer(agentBuffer, 0, initialAgentData);
         }
         {
           const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
