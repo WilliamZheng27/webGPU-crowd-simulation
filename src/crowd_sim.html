@@ -48,7 +48,7 @@
           alphaMode: 'premultiplied',
       });
 
-      const numAgents = 8192; // MUST be power of 2
+      const numAgents = 512; // MUST be power of 2
       const simParams = {
         deltaT: 0.02,
         stabilityIterations: 1,
@@ -282,7 +282,7 @@
           const velocity = i % 2 == 0? [0, -0.1] : [0, 0.1];
           const goal = i % 2 == 0? [0, -1.0] : [0, 1.0];
           const Idx = Math.floor(i / 2);
-          const power = Math.log2(numAgents);
+          const power = Math.log2(numAgents / 2);
           const x_count = 2 ** Math.ceil(power / 2);
           const y_count = 2 ** Math.floor(power / 2);
           const x_offset = (boundary[1][0] - boundary[0][0]) / x_count;
