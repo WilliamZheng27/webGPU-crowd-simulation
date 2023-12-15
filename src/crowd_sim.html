@@ -48,11 +48,12 @@
           alphaMode: 'premultiplied',
       });
 
-      const numAgents = 512; // MUST be power of 2
+      const numAgents = 4096; // MUST be power of 2
       const simParams = {
         deltaT: 0.02,
         stabilityIterations: 1,
         constraintIterations: 6,
+        avoidance: false,
         agentScale: 0.5 ** Math.max(0.0, Math.floor(Math.log(numAgents/512) / Math.log(4))),
       };
 
@@ -231,7 +232,7 @@
       spriteVertexBuffer.unmap();
 
       // pass parameters to the shaders (some params are omitted if not needed)
-      const simParamBufferSize = 2 * Float32Array.BYTES_PER_ELEMENT;
+      const simParamBufferSize = 3 * Float32Array.BYTES_PER_ELEMENT;
       const simParamBuffer = device.createBuffer({
         size: simParamBufferSize,
         usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
@@ -242,6 +243,7 @@
         new Float32Array([
           simParams.deltaT,
           simParams.agentScale,
+          simParams.avoidance? 1.0 : 0.0,
         ])
       );
 
